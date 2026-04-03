@@ -46,14 +46,16 @@ export default function Progress() {
     setIsMounted(true);
     async function fetchExercises() {
       if (!user) return;
-      const { data } = await supabase.from("exercises").select(`name, workouts (user_id)`);
+      // Use !inner to filter exercises that belong to this user
+      const { data, error } = await supabase
+        .from("exercises")
+        .select(`name, workouts!inner(user_id)`)
+        .eq("workouts.user_id", user.id);
+      
       if (data) {
-          const names = Array.from(new Set(data
-            .filter((e: any) => e.workouts?.user_id === user.id)
-            .map((e: any) => e.name)
-          ));
+          const names = Array.from(new Set(data.map((e: any) => e.name)));
           setExercises(names);
-          if (names.length > 0) setSelectedExercise(names[0]);
+          if (names.length > 0 && !selectedExercise) setSelectedExercise(names[0]);
       }
       setLoading(false);
     }
@@ -63,15 +65,34 @@ export default function Progress() {
   useEffect(() => {
     async function fetchProgress() {
       if (!selectedExercise || !user) return;
-      const { data } = await supabase.from("sets").select(`weight, exercises (name, workouts (date, user_id))`).eq("exercises.name", selectedExercise);
+      
+      // Use nested joins with !inner to ensure we only get sets for this user AND this specific exercise name
+      const { data, error } = await supabase
+        .from("sets")
+        .select(`
+          weight, 
+          exercises!inner(
+            name, 
+            workouts!inner(date, user_id)
+          )
+        `)
+        .eq("exercises.name", selectedExercise)
+        .eq("exercises.workouts.user_id", user.id);
+      
       if (data) {
-          const userSets = data.filter((s:any) => s.exercises?.workouts?.user_id === user.id);
-          const grouped = userSets.reduce((acc: any, curr: any) => {
+          const grouped = data.reduce((acc: any, curr: any) => {
               const date = curr.exercises.workouts.date;
               if (!acc[date] || curr.weight > acc[date]) acc[date] = curr.weight;
               return acc;
           }, {});
-          const formatted = Object.keys(grouped).sort().map(date => ({ date: date, weight: grouped[date] }));
+          
+          const formatted = Object.keys(grouped)
+            .sort()
+            .map(date => ({ 
+              date: date, 
+              weight: grouped[date] 
+            }));
+            
           setChartData(formatted);
       }
     }
@@ -95,7 +116,7 @@ export default function Progress() {
               <h2 className="text-xl md:text-2xl font-black text-white italic uppercase flex items-center gap-3">
                 <Target className="w-6 h-6 md:w-8 md:h-8 text-primary" /> PR <span className="text-primary not-italic">TRACKER</span>
               </h2>
-              <p className="text-muted text-[10px] font-black uppercase tracking-widest mt-1">REAL-TIME DATA SYNC</p>
+              <p className="text-muted text-[10px] font-black uppercase tracking-widest mt-1 uppercase">REAL-TIME DATA SYNC</p>
             </div>
             <div className="relative group/search w-full md:w-64">
                <div className="absolute left-4 top-1/2 -translate-y-1/2 select-none"><Search className="w-4 h-4 text-muted" /></div>
@@ -107,9 +128,9 @@ export default function Progress() {
           </div>
 
           <div className="h-[400px] w-full min-h-[400px] relative z-10">
-            {isMounted && chartData.length > 1 ? (
-                <ResponsiveContainer width="100%" height={400} debounce={50}>
-                    <AreaChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+            {isMounted && chartData.length > 0 ? (
+                <ResponsiveContainer width="99%" height={400} debounce={50}>
+                    <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs><linearGradient id="colorPr" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#c4fb6d" stopOpacity={0.4}/><stop offset="95%" stopColor="#c4fb6d" stopOpacity={0}/></linearGradient></defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#222" />
                         <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#666', fontSize: 10, fontWeight: 900 }} dy={10} tickFormatter={(val) => val.split('-').slice(1).join('/')}/>
@@ -121,7 +142,7 @@ export default function Progress() {
             ) : isMounted && (
                 <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
                     <BarChart3 className="w-10 h-10 text-white/5" />
-                    <p className="text-muted font-black text-[10px] max-w-[200px] uppercase tracking-widest leading-loose">Insufficient analytical data sync</p>
+                    <p className="text-muted font-black text-[10px] max-w-[200px] uppercase tracking-widest leading-loose uppercase">{selectedExercise ? "Insufficient analytical data sync" : "Database analytics required"}</p>
                 </div>
             )}
           </div>
@@ -129,17 +150,15 @@ export default function Progress() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6">
            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="glass rounded-[32px] md:rounded-[48px] p-8 md:p-10 space-y-4 md:space-y-6">
-              <h3 className="text-[10px] font-black text-muted uppercase tracking-[0.2em] flex items-center gap-2"><Trophy className="w-4 h-4 text-primary" /> BEST LIFT</h3>
-              <div className="flex items-baseline gap-2"><span className="text-5xl md:text-7xl font-black text-white italic leading-none">{chartData.length > 0 ? Math.max(...chartData.map(d => d.weight)) : "0"}</span><span className="text-primary font-black text-lg italic uppercase leading-none">KG</span></div>
+              <h3 className="text-[10px] font-black text-muted uppercase tracking-[0.2em] flex items-center gap-2 uppercase"><Trophy className="w-4 h-4 text-primary" /> BEST LIFT</h3>
+              <div className="flex items-baseline gap-2"><span className="text-5xl md:text-7xl font-black text-white italic leading-none text-glow">{chartData.length > 0 ? Math.max(...chartData.map(d => d.weight)) : "0"}</span><span className="text-primary font-black text-lg italic uppercase leading-none">KG</span></div>
            </motion.div>
            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0, transition: { delay: 0.1 } }} className="glass rounded-[32px] md:rounded-[48px] p-8 md:p-10 space-y-6">
-              <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] flex items-center gap-2"><Sparkles className="w-4 h-4" /> WEEKLY SYNC</h3>
+              <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] flex items-center gap-2 uppercase"><Sparkles className="w-4 h-4" /> WEEKLY SYNC</h3>
               <div className="h-[100px] w-full min-h-[100px] relative">
-                 {isMounted && (
-                     <ResponsiveContainer width="100%" height={100} debounce={50}>
-                        <BarChart data={frequencyData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}><Bar dataKey="workouts" fill="#c4fb6d" radius={[4, 4, 0, 0]} /></BarChart>
-                     </ResponsiveContainer>
-                 )}
+                 <ResponsiveContainer width="99%" height={100} debounce={50}>
+                    <BarChart data={frequencyData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}><Bar dataKey="workouts" fill="#c4fb6d" radius={[4, 4, 0, 0]} /></BarChart>
+                 </ResponsiveContainer>
               </div>
            </motion.div>
         </div>
