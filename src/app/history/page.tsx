@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
@@ -68,7 +68,6 @@ export default function WorkoutHistory() {
         }
         
         if (data) {
-            // Group workouts by date
             const grouped = data.reduce((acc: any, curr: any) => {
                 const dateKey = curr.date;
                 if (!acc[dateKey]) {
@@ -77,7 +76,6 @@ export default function WorkoutHistory() {
                         exercises: []
                     };
                 }
-                // Flatten exercises from all workout sessions on this date
                 acc[dateKey].exercises.push(...curr.exercises);
                 return acc;
             }, {});
@@ -121,7 +119,7 @@ export default function WorkoutHistory() {
 
   if (groupedWorkouts.length === 0) {
     return (
-       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center max-w-sm mx-auto">
+       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center max-w-sm mx-auto px-6">
         <div className="w-24 h-24 bg-secondary/30 rounded-full flex items-center justify-center mb-8 relative">
           <Activity className="w-12 h-12 text-muted" />
            <div className="absolute inset-0 bg-primary/5 rounded-full animate-ping" />
@@ -130,7 +128,7 @@ export default function WorkoutHistory() {
         <p className="text-muted text-sm font-medium mb-10 leading-relaxed">Your journey hasn't hit the paper yet. Start a session to track your growth.</p>
         <button 
            onClick={() => window.location.href = '/log'}
-           className="w-full py-5 bg-primary text-black font-black rounded-2xl shadow-xl flex items-center justify-center gap-3 group"
+           className="w-full py-5 bg-primary text-black font-black rounded-2xl shadow-xl flex items-center justify-center gap-3 group uppercase text-xs tracking-widest"
         >
           START FIRST SESSION
           <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -140,90 +138,93 @@ export default function WorkoutHistory() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-12">
+    <div className="max-w-5xl mx-auto space-y-8 md:space-y-12 pb-24 scroll-smooth overscroll-y-contain">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="flex items-center gap-6"
+        className="flex items-center gap-4 md:gap-6 px-4 md:px-0"
       >
-        <div className="w-16 h-16 bg-primary rounded-[20px] flex items-center justify-center text-black shadow-xl shrink-0">
-          <Clock className="w-8 h-8" />
+        <div className="w-12 h-12 md:w-16 md:h-16 bg-primary rounded-[16px] md:rounded-[20px] flex items-center justify-center text-black shadow-xl shrink-0">
+          <Clock className="w-6 h-6 md:w-8 md:h-8" />
         </div>
         <div>
-          <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter">TRAINING <span className="text-primary not-italic">LOGS</span></h1>
-          <p className="text-muted mt-2 font-black uppercase text-[10px] tracking-[0.2em] px-1">DAILY SESSION HISTORY</p>
+          <h1 className="text-2xl md:text-4xl font-black text-white uppercase italic tracking-tighter">TRAINING <span className="text-primary not-italic">LOGS</span></h1>
+          <p className="text-muted mt-1 font-black uppercase text-[8px] md:text-[10px] tracking-[0.2em]">DAILY SESSION HISTORY</p>
         </div>
       </motion.div>
 
-      <div className="space-y-8">
+      <div className="space-y-6 md:space-y-8 px-2 md:px-0">
         {groupedWorkouts.map((group, idx) => (
           <motion.div
             key={group.date}
+            layout
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.1 }}
-            className="glass rounded-[40px] overflow-hidden transition-all duration-500 hover:border-primary/20 shadow-2xl relative"
+            transition={{ delay: idx * 0.05 }}
+            className="glass rounded-[32px] md:rounded-[40px] overflow-hidden transition-all duration-300 hover:border-primary/20 shadow-2xl relative"
           >
             <button 
               onClick={() => toggleExpand(group.date)}
-              className="w-full p-8 flex items-center justify-between text-left group"
+              className="w-full p-5 md:p-8 flex items-center justify-between text-left group"
             >
-              <div className="flex items-center gap-6">
-                 <div className="flex flex-col items-center justify-center w-20 h-20 bg-secondary/80 rounded-[28px] border border-white/5 group-hover:border-primary/30 transition-all">
-                    <span className="text-2xl font-black text-white leading-none">{format(new Date(group.date), "dd")}</span>
-                    <span className="text-[10px] font-black uppercase text-primary tracking-widest mt-1">{format(new Date(group.date), "MMM")}</span>
+              <div className="flex items-center gap-4 md:gap-6">
+                 <div className="flex flex-col items-center justify-center w-14 h-14 md:w-20 md:h-20 bg-secondary/80 rounded-[20px] md:rounded-[28px] border border-white/5 group-hover:border-primary/30 transition-all shrink-0">
+                    <span className="text-lg md:text-2xl font-black text-white leading-none">{format(new Date(group.date), "dd")}</span>
+                    <span className="text-[8px] md:text-[10px] font-black uppercase text-primary tracking-widest mt-1">{format(new Date(group.date), "MMM")}</span>
                  </div>
                  <div>
-                    <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-2">
-                       {group.exercises.length} <span className="text-primary italic">Exercises</span> Recorded
+                    <h3 className="text-lg md:text-2xl font-black text-white uppercase tracking-tight mb-1 md:mb-2">
+                       {group.exercises.length} <span className="text-primary italic">Exercises</span>
                     </h3>
-                    <div className="flex flex-wrap gap-2">
-                        {Array.from(new Set(group.exercises.map(e => e.muscle_group))).map(mg => (
-                            <span key={mg} className="text-[10px] bg-white/5 text-muted px-4 py-1.5 rounded-full font-black uppercase border border-white/5 tracking-widest shadow-sm">{mg}</span>
+                    <div className="flex flex-wrap gap-1 md:gap-2">
+                        {Array.from(new Set(group.exercises.map(e => e.muscle_group))).slice(0, 3).map(mg => (
+                            <span key={mg} className="text-[7px] md:text-[10px] bg-white/5 text-muted px-2 md:px-4 py-1 md:py-1.5 rounded-full font-black uppercase border border-white/5 tracking-widest leading-none">{mg}</span>
                         ))}
+                        {Array.from(new Set(group.exercises.map(e => e.muscle_group))).length > 3 && <span className="text-[7px] md:text-[10px] text-muted italic">...</span>}
                     </div>
                  </div>
               </div>
               
-              <div className="p-4 rounded-full bg-secondary/50 group-hover:bg-primary/10 transition-all duration-500 shrink-0 border border-white/5">
-                <ChevronDown className={cn("w-6 h-6 text-primary transition-transform duration-500", expandedDates.has(group.date) && "rotate-180")} />
+              <div className="p-3 md:p-4 rounded-full bg-secondary/50 group-hover:bg-primary/10 transition-all duration-300 shrink-0 border border-white/5">
+                <ChevronDown className={cn("w-4 h-4 md:w-6 md:h-6 text-primary transition-transform duration-500", expandedDates.has(group.date) && "rotate-180")} />
               </div>
             </button>
 
-            <AnimatePresence>
+            <AnimatePresence mode="popLayout">
               {expandedDates.has(group.date) && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden"
+                  transition={{ duration: 0.3, ease: "circOut" }}
+                  className="overflow-hidden will-change-[height,opacity]"
                 >
-                  <div className="p-8 pt-0 space-y-8">
-                    <div className="h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent mb-8" />
+                  <div className="p-5 md:p-8 pt-0 space-y-6 md:space-y-8">
+                    <div className="h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent mb-4 md:mb-8" />
                     {group.exercises.map((ex, exIdx) => (
-                      <div key={`${ex.id}-${exIdx}`} className="relative pl-12">
-                        <div className="absolute left-[3px] top-0 bottom-0 w-[2px] bg-gradient-to-b from-primary/40 via-primary/10 to-transparent" />
-                        <div className="absolute left-0 top-3 w-2 h-2 bg-primary rounded-full shadow-[0_0_15px_var(--primary)]" />
+                      <div key={`${ex.id}-${exIdx}`} className="relative pl-8 md:pl-12">
+                        <div className="absolute left-[2px] md:left-[3px] top-0 bottom-0 w-[1px] md:w-[2px] bg-gradient-to-b from-primary/40 via-primary/5 to-transparent" />
+                        <div className="absolute left-[-2px] md:left-0 top-3 w-1.5 h-1.5 md:w-2 md:h-2 bg-primary rounded-full shadow-[0_0_15px_var(--primary)]" />
                         
-                        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 p-8 bg-white/5 rounded-[40px] border border-white/5 hover:bg-white/[0.07] transition-all">
-                          <div className="flex items-center gap-6 shrink-0">
-                             <div className="w-16 h-16 bg-secondary/80 rounded-2xl flex items-center justify-center text-primary shadow-xl border border-white/5">
-                                <Dumbbell className="w-8 h-8" />
+                        <div className="flex flex-col gap-4 md:gap-8 p-5 md:p-8 bg-white/5 rounded-[24px] md:rounded-[40px] border border-white/5 hover:bg-white/[0.07] transition-all">
+                          <div className="flex items-center gap-4 md:gap-6 shrink-0">
+                             <div className="w-10 h-10 md:w-16 md:h-16 bg-secondary/80 rounded-xl md:rounded-2xl flex items-center justify-center text-primary shadow-xl border border-white/5">
+                                <Dumbbell className="w-5 h-5 md:w-8 md:h-8" />
                              </div>
                              <div>
-                                <h4 className="text-xl font-black text-white uppercase tracking-tight leading-none">{ex.name}</h4>
-                                <span className="text-[10px] text-primary font-black uppercase tracking-[0.3em] inline-block mt-2">{ex.muscle_group}</span>
+                                <h4 className="text-md md:text-xl font-black text-white uppercase tracking-tight leading-none">{ex.name || "Strength Exercise"}</h4>
+                                <span className="text-[8px] md:text-[10px] text-primary font-black uppercase tracking-[0.2em] inline-block mt-1 md:mt-2">{ex.muscle_group}</span>
                              </div>
                           </div>
 
-                          <div className="flex-1 grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
                             {ex.sets.map((set, sIdx) => (
-                              <div key={set.id} className="bg-background/40 p-5 rounded-3xl border border-white/5 flex flex-col items-center hover:border-primary/20 transition-all">
-                                <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-2">SET {sIdx + 1}</span>
-                                <div className="text-xl font-black text-white flex items-baseline gap-1 italic">
-                                   {set.weight}<span className="text-primary text-[10px] not-italic font-black uppercase tracking-tighter">KG</span>
-                                   <XIcon className="mx-2 text-muted w-3 h-3 translate-y-[-2px] not-italic" />
-                                   {set.reps}<span className="text-primary text-[10px] not-italic font-black uppercase tracking-tighter">REP</span>
+                              <div key={set.id} className="bg-background/40 p-3 md:p-5 rounded-2xl md:rounded-3xl border border-white/5 flex flex-col items-center hover:border-primary/20 transition-all">
+                                <span className="text-[7px] md:text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-1 md:mb-2">SET {sIdx + 1}</span>
+                                <div className="text-sm md:text-xl font-black text-white flex items-baseline gap-1 italic">
+                                   {set.weight}<span className="text-primary text-[8px] md:text-[10px] not-italic font-black uppercase tracking-tighter">KG</span>
+                                   <XIcon className="mx-1.5 md:mx-2 text-muted w-2 h-2 md:w-3 md:h-3 translate-y-[-1px] md:translate-y-[-2px] not-italic" />
+                                   {set.reps}<span className="text-primary text-[8px] md:text-[10px] not-italic font-black uppercase tracking-tighter">REP</span>
                                 </div>
                               </div>
                             ))}
