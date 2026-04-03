@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+:root {
+  --background: #000000;
+  --foreground: #ffffff;
+  --primary: #c4fb6d; /* Neon Green */
+  --secondary: #1a1a1a; /* Charcoal */
+  --accent: #2d2d2d;
+  --muted: #888888;
+  --card: #121212;
+  --border: #222222;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
+  --color-card: var(--card);
+  --color-border: var(--border);
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: rgba(18, 18, 18, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Custom transitions */
+.page-transition {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Hover effects */
+.hover-neon:hover {
+  text-shadow: 0 0 8px var(--primary);
+  box-shadow: 0 0 15px rgba(196, 251, 109, 0.2);
+}
