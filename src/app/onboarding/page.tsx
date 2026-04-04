@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Weight, ArrowUp, Activity, User } from "lucide-react";
+import { ArrowRight, Weight, ArrowUp, Activity, User, Calendar, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DAYS_OF_WEEK } from "@/lib/streak-utils";
 
 export default function Onboarding() {
   const { user } = useUser();
@@ -16,8 +17,30 @@ export default function Onboarding() {
     age: "",
     height: "",
     weight: "",
+    workout_days: [] as string[],
   });
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    async function fetchProfile() {
+      if (!user) return;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+      
+      if (data && !error) {
+        setFormData({
+          age: data.age?.toString() || "",
+          height: data.height?.toString() || "",
+          weight: data.weight?.toString() || "",
+          workout_days: data.workout_days || [],
+        });
+      }
+    }
+    fetchProfile();
+  }, [user]);
 
   const calculateBMI = (): string => {
     const h = (parseFloat(formData.height) || 0) / 100;
@@ -47,6 +70,7 @@ export default function Onboarding() {
         height: parseFloat(formData.height),
         weight: parseFloat(formData.weight),
         bmi: parseFloat(calculateBMI()),
+        workout_days: formData.workout_days,
         updated_at: new Date().toISOString(),
       });
 
@@ -65,16 +89,31 @@ export default function Onboarding() {
         <motion.div
            initial={{ opacity: 0, y: 20 }}
            animate={{ opacity: 1, y: 0 }}
-           className="text-center mb-12"
+           className="text-center mb-8"
         >
-          <span className="inline-block px-4 py-1.5 bg-primary/10 text-primary border border-primary/20 rounded-full text-xs font-black uppercase tracking-[0.2em] mb-4 shadow-[0_0_15px_rgba(196,251,109,0.1)]">
-            PHASE 01: BIOMETRICS
+          <div className="flex items-center justify-center gap-2 mb-6">
+            {[1, 2, 3].map((s) => (
+              <button
+                key={s}
+                onClick={() => setStep(s)}
+                className={cn(
+                  "w-12 h-1.5 rounded-full transition-all duration-500",
+                  step === s ? "bg-primary w-20" : s < step ? "bg-primary/40" : "bg-white/10"
+                )}
+                aria-label={`Go to step ${s}`}
+              />
+            ))}
+          </div>
+          <span className="inline-block px-4 py-1.5 bg-primary/10 text-primary border border-primary/20 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-4 shadow-[0_0_15px_rgba(196,251,109,0.1)]">
+            PHASE 0{step}: {step === 1 ? "BIOMETRICS" : step === 2 ? "ANALYSIS" : "SCHEDULE"}
           </span>
-          <h1 className="text-4xl md:text-5xl font-black text-white mb-4 italic uppercase tracking-tighter">
-            ESTABLISH YOUR <span className="text-primary not-italic">LEGACY</span>
+          <h1 className="text-4xl md:text-5xl font-black text-white mb-4 italic uppercase tracking-tighter leading-none">
+            {step === 3 ? "STREAK" : "ESTABLISH"} <span className="text-primary not-italic">{step === 3 ? "ACTIVATION" : "LEGACY"}</span>
           </h1>
-          <p className="text-muted text-lg max-w-sm mx-auto font-medium">
-            Link your vitals to MYGYM to synchronize your journey.
+          <p className="text-muted text-sm md:text-base max-w-sm mx-auto font-medium">
+            {step === 3 
+              ? "Set your training commitment to begin tracking your performance streak." 
+              : "Link your vitals to MYGYM to synchronize your journey."}
           </p>
         </motion.div>
 
@@ -178,11 +217,74 @@ export default function Onboarding() {
                     GO BACK
                   </button>
                   <button
-                    onClick={handleSubmit}
-                    disabled={loading}
-                    className="flex-[2] py-5 bg-primary text-black font-black text-lg rounded-2xl hover:bg-white hover:scale-[1.02] shadow-[0_4px_30px_rgba(196,251,109,0.2)] active:scale-95 transition-all duration-300"
+                    onClick={() => setStep(3)}
+                    className="flex-[2] py-5 bg-primary text-black font-black text-lg rounded-2xl hover:bg-white hover:scale-[1.02] shadow-[0_4px_30px_rgba(196,251,109,0.2)] active:scale-95 transition-all duration-300 flex items-center justify-center gap-2"
                   >
-                    {loading ? "SAVING..." : "COMPLETE PROFILE"}
+                    SET SCHEDULE
+                    <ArrowRight className="w-5 h-5" />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {step === 3 && (
+              <motion.div
+                key="step3"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-8"
+              >
+                <div className="text-center space-y-4 mb-8">
+                  <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto text-primary">
+                    <Calendar className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-2xl font-black text-white uppercase italic">COMMIT TO YOUR DAYS</h3>
+                  <p className="text-muted text-sm max-w-xs mx-auto">
+                    Select the days you promise to train. Your streak depends on this commitment.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-4 gap-3">
+                  {DAYS_OF_WEEK.map((day) => {
+                    const isSelected = formData.workout_days.includes(day);
+                    return (
+                      <button
+                        key={day}
+                        onClick={() => {
+                          const newDays = isSelected
+                            ? formData.workout_days.filter(d => d !== day)
+                            : [...formData.workout_days, day];
+                          setFormData({ ...formData, workout_days: newDays });
+                        }}
+                        className={cn(
+                          "py-4 rounded-2xl font-black text-sm transition-all border-2 flex flex-col items-center justify-center gap-2",
+                          isSelected 
+                            ? "bg-primary border-primary text-black scale-[1.05] shadow-[0_0_20px_rgba(196,251,109,0.2)]" 
+                            : "bg-secondary/30 border-white/5 text-muted hover:border-white/10"
+                        )}
+                      >
+                        <span className="uppercase tracking-tighter">{day}</span>
+                        {isSelected && <Check className="w-3 h-3" />}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    onClick={() => setStep(2)}
+                    className="flex-1 py-5 bg-secondary border border-border text-white font-bold rounded-2xl hover:bg-accent transition-all"
+                  >
+                    BACK
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={loading || formData.workout_days.length === 0}
+                    className="flex-[2] py-5 bg-primary text-black font-black text-lg rounded-2xl hover:bg-white hover:scale-[1.02] shadow-[0_4px_30px_rgba(196,251,109,0.2)] active:scale-95 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale"
+                  >
+                    {loading ? "SAVING..." : "ACTIVATE STREAK"}
+                    {!loading && <ArrowRight className="w-5 h-5" />}
                   </button>
                 </div>
               </motion.div>

@@ -12,8 +12,12 @@ import {
   Plus,
   Scale,
   Activity,
-  Edit2
+  Edit2,
+  CheckCircle2,
+  XCircle,
+  Calendar
 } from "lucide-react";
+import { calculateSmartStreak, getWeeklyStatus, DAYS_OF_WEEK } from "@/lib/streak-utils";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -33,6 +37,7 @@ export default function Dashboard() {
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
   const [recentWorkouts, setRecentWorkouts] = useState<any[]>([]);
+  const [weeklyStatus, setWeeklyStatus] = useState<any[]>([]);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -41,35 +46,20 @@ export default function Dashboard() {
       if (!user) return;
       const { data: profData } = await supabase.from("profiles").select("*").eq("id", user.id).single();
       if (profData) setProfile(profData);
+      
       const { data: workData } = await supabase.from("workouts").select("date").eq("user_id", user.id).order("date", { ascending: false });
       if (workData) {
           setRecentWorkouts(workData);
-          setStreak(calculateStreak(workData.map(w => w.date)));
+          const workoutDates = workData.map(w => w.date);
+          const schedule = profData?.workout_days || [];
+          setStreak(calculateSmartStreak(workoutDates, schedule));
+          setWeeklyStatus(getWeeklyStatus(workoutDates, schedule));
       }
       setLoading(false);
     }
     fetchData();
   }, [user]);
 
-  const calculateStreak = (dates: string[]) => {
-    if (dates.length === 0) return 0;
-    const uniqueDates = Array.from(new Set(dates)).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-    let currentStreak = 0;
-    let today = new Date(); today.setHours(0, 0, 0, 0);
-    let lastWorkoutDate = new Date(uniqueDates[0]); lastWorkoutDate.setHours(0, 0, 0, 0);
-    const diffTime = Math.abs(today.getTime() - lastWorkoutDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays > 1) return 0;
-    for (let i = 0; i < uniqueDates.length; i++) {
-        const d1 = new Date(uniqueDates[i]); d1.setHours(0, 0, 0, 0);
-        if (i === 0) { currentStreak = 1; continue; }
-        const d2 = new Date(uniqueDates[i-1]); d2.setHours(0, 0, 0, 0);
-        const diff = Math.abs(d2.getTime() - d1.getTime());
-        const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-        if (days === 1) currentStreak++; else break;
-    }
-    return currentStreak;
-  };
 
   const stats = [
     { label: "Current Weight", value: profile?.weight ? `${profile.weight} kg` : "0 kg", icon: Scale, color: "text-blue-400" },
@@ -83,7 +73,24 @@ export default function Dashboard() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-4xl font-black text-white leading-tight">WELCOME BACK,<br /><span className="text-primary italic"> {user?.firstName?.toUpperCase() || "CHAMP"}</span></h1>
-          <p className="text-muted mt-2 font-medium">Your persistence is paying off. Keep pushing.</p>
+          {profile?.workout_days?.length > 0 && (
+            <div className="mt-2 flex items-center gap-2">
+              {streak > 0 ? (
+                <span className="text-primary font-black text-xs uppercase tracking-widest flex items-center gap-1.5 bg-primary/10 px-3 py-1 rounded-full">
+                  <Flame className="w-3 h-3" /> You're on track!
+                </span>
+              ) : (
+                <span className="text-orange-400 font-black text-xs uppercase tracking-widest flex items-center gap-1.5 bg-orange-400/10 px-3 py-1 rounded-full">
+                  <Activity className="w-3 h-3" /> Let's start the streak!
+                </span>
+              )}
+               {weeklyStatus.some(s => s.status === 'missed') && (
+                <span className="text-red-400 font-black text-xs uppercase tracking-widest flex items-center gap-1.5 bg-red-400/10 px-3 py-1 rounded-full">
+                  ⚠️ Missed a day
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex gap-4">
             <Link href="/onboarding"><motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="px-6 py-4 bg-white/5 border border-white/10 text-white font-bold rounded-2xl flex items-center gap-3 group hover:bg-white/10 transition-all font-black uppercase text-xs tracking-widest leading-none"><Edit2 className="w-4 h-4" /> UPDATE RECORD</motion.button></Link>
@@ -107,26 +114,58 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="xl:col-span-2 glass rounded-[32px] p-8 shadow-2xl relative overflow-hidden h-[400px]">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-2xl font-black text-white flex items-center gap-3 italic"><TrendingUp className="text-primary w-6 h-6" /> WEEKLY OVERVIEW</h2>
-              <p className="text-muted text-sm mt-1">Total workouts completed this week</p>
-            </div>
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="xl:col-span-2 glass rounded-[32px] p-8 shadow-2xl relative overflow-hidden">
+        <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
+           <div>
+            <h2 className="text-2xl font-black text-white flex items-center gap-3 italic"><Calendar className="text-primary w-6 h-6" /> WEEKLY SCHEDULE</h2>
+            <p className="text-muted text-sm mt-1">Consistency is the only shortcut to greatness.</p>
           </div>
-          <div className="h-[250px] w-full min-h-[250px] relative">
-            {isMounted && (
-                <ResponsiveContainer width="100%" height={250} debounce={50}>
-                    <AreaChart data={recentWorkouts.slice(0, 7).reverse().map(w => ({ name: new Date(w.date).toLocaleDateString('en-US', {weekday: 'short'}), count: 1 }))} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                        <defs><linearGradient id="colorStreak" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#c4fb6d" stopOpacity={0.3}/><stop offset="95%" stopColor="#c4fb6d" stopOpacity={0}/></linearGradient></defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#222" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#888', fontSize: 12, fontWeight: 600 }} dy={10}/>
-                        <YAxis hide />
-                        <Tooltip contentStyle={{ backgroundColor: '#121212', border: '1px solid #222', borderRadius: '12px' }} itemStyle={{ color: '#c4fb6d' }}/>
-                        <Area type="monotone" dataKey="count" stroke="#c4fb6d" strokeWidth={4} fillOpacity={1} fill="url(#colorStreak)" />
-                    </AreaChart>
-                </ResponsiveContainer>
-            )}
+          {(!profile?.workout_days || profile.workout_days.length === 0) ? (
+              <Link href="/onboarding">
+                  <button className="text-primary text-[10px] font-black uppercase tracking-widest bg-primary/10 px-4 py-2 rounded-xl border border-primary/20 hover:bg-primary/20 transition-all">Set Schedule</button>
+              </Link>
+          ) : (
+            <Link href="/onboarding">
+                <button className="text-muted text-[10px] font-black uppercase tracking-widest hover:text-primary transition-all flex items-center gap-2 group">
+                    <Edit2 className="w-3 h-3 group-hover:scale-125 transition-all" /> EDIT
+                </button>
+            </Link>
+          )}
+        </div>
+          
+          <div className="grid grid-cols-7 gap-2 md:gap-4">
+             {weeklyStatus.length > 0 ? weeklyStatus.map((day, i) => (
+                <div key={i} className={cn(
+                    "flex flex-col items-center gap-3 p-3 md:p-4 rounded-2xl border transition-all",
+                    day.isCompleted ? "bg-primary/10 border-primary/20" : 
+                    day.status === 'missed' ? "bg-red-400/10 border-red-400/20" :
+                    day.isScheduled ? "bg-white/5 border-white/10" : "bg-transparent border-transparent opacity-40"
+                )}>
+                    <span className={cn(
+                        "text-[10px] font-black uppercase tracking-widest",
+                        day.isCompleted ? "text-primary" : 
+                        day.status === 'missed' ? "text-red-400" : "text-muted"
+                    )}>{day.day}</span>
+                    
+                    <div className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                        day.isCompleted ? "bg-primary text-black" : 
+                        day.status === 'missed' ? "bg-red-400/20 text-red-400" :
+                        day.isScheduled ? "bg-secondary text-muted" : "bg-secondary/20 text-muted/30"
+                    )}>
+                        {day.isCompleted ? <CheckCircle2 className="w-6 h-6" /> : 
+                         day.status === 'missed' ? <XCircle className="w-6 h-6" /> :
+                         day.isScheduled ? <Flame className="w-5 h-5" /> : <div className="w-2 h-2 rounded-full bg-current" />}
+                    </div>
+                </div>
+             )) : (
+                 DAYS_OF_WEEK.map((day, i) => (
+                    <div key={i} className="flex flex-col items-center gap-3 p-4 rounded-2xl border border-white/5 bg-white/5 opacity-20">
+                        <span className="text-[10px] font-black uppercase text-muted tracking-widest">{day}</span>
+                        <div className="w-10 h-10 rounded-xl bg-secondary" />
+                    </div>
+                 ))
+             )}
           </div>
         </motion.div>
 
