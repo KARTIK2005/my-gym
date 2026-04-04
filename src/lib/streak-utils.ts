@@ -9,9 +9,16 @@ export const getDayName = (date: Date): string => {
  * The streak is the number of consecutive *scheduled* days that have been completed.
  * It resets to 0 if a past scheduled day was missed.
  */
-export const calculateSmartStreak = (workoutDates: string[], schedule: string[]): number => {
+export const calculateSmartStreak = (
+  workoutDates: string[], 
+  schedule: string[],
+  memberSince?: string
+): number => {
   if (!schedule || schedule.length === 0) return 0;
   if (!workoutDates || workoutDates.length === 0) return 0;
+
+  const signUpDate = memberSince ? new Date(memberSince) : null;
+  if (signUpDate) signUpDate.setHours(0, 0, 0, 0);
 
   // Normalize dates to YYYY-MM-DD and unique set
   const completedDates = new Set(workoutDates.map(d => d.split('T')[0]));
@@ -26,6 +33,11 @@ export const calculateSmartStreak = (workoutDates: string[], schedule: string[])
   while (true) {
     const dayName = getDayName(checkDate);
     const dateStr = checkDate.toISOString().split('T')[0];
+
+    // If we've reached a date before the user joined, stop checking
+    if (signUpDate && checkDate.getTime() < signUpDate.getTime()) {
+      break;
+    }
 
     if (schedule.includes(dayName)) {
       if (completedDates.has(dateStr)) {
@@ -54,11 +66,18 @@ export const calculateSmartStreak = (workoutDates: string[], schedule: string[])
 /**
  * Returns the status for each day of the current week (Sun-Sat).
  */
-export const getWeeklyStatus = (workoutDates: string[], schedule: string[]) => {
+export const getWeeklyStatus = (
+  workoutDates: string[], 
+  schedule: string[],
+  memberSince?: string
+) => {
   const today = new Date();
   const currentDayIndex = today.getDay();
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - currentDayIndex);
+
+  const signUpDate = memberSince ? new Date(memberSince) : null;
+  if (signUpDate) signUpDate.setHours(0, 0, 0, 0);
 
   const completedDates = new Set(workoutDates.map(d => d.split('T')[0]));
 
@@ -70,6 +89,9 @@ export const getWeeklyStatus = (workoutDates: string[], schedule: string[]) => {
     const isCompleted = completedDates.has(dateStr);
     const isToday = index === currentDayIndex;
     const isPast = index < currentDayIndex;
+    
+    // Check if the day is before the user joined
+    const isBeforeJoin = signUpDate ? date.getTime() < signUpDate.getTime() : false;
 
     let status: 'completed' | 'missed' | 'upcoming' | 'optional' = 'upcoming';
 
@@ -77,7 +99,7 @@ export const getWeeklyStatus = (workoutDates: string[], schedule: string[]) => {
       status = 'completed';
     } else if (isScheduled) {
       if (isPast) {
-        status = 'missed';
+        status = isBeforeJoin ? 'optional' : 'missed';
       } else if (isToday) {
         status = 'upcoming'; // Still have time
       }

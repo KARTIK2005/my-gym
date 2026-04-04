@@ -149,10 +149,10 @@ export default function LogWorkout() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 md:space-y-10">
+    <div className="max-w-4xl mx-auto space-y-6 md:space-y-10 px-4 md:px-0 pb-20">
        {!loading && (
-           <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl flex items-center gap-3 text-xs md:text-sm font-bold text-primary italic uppercase tracking-widest">
-               <AlertCircle className="w-4 h-4" />
+           <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl flex items-center gap-3 text-[10px] md:text-sm font-bold text-primary italic uppercase tracking-widest">
+               <AlertCircle className="w-4 h-4 shrink-0" />
                Recording gains to your personal database
            </div>
        )}
@@ -163,26 +163,26 @@ export default function LogWorkout() {
         className="flex flex-col md:flex-row md:items-center justify-between gap-6"
       >
         <div>
-          <h1 className="text-3xl md:text-4xl font-black text-white italic lowercase tracking-tighter">LOG <span className="text-primary not-italic">SESSION</span></h1>
-          <p className="text-muted mt-1 text-sm md:text-base font-medium">Record your victory for the history books.</p>
+          <h1 className="text-3xl md:text-4xl font-black text-white italic lowercase tracking-tighter uppercase">LOG <span className="text-primary not-italic">SESSION</span></h1>
+          <p className="text-muted mt-1 text-xs md:text-base font-medium">Record your victory for the history books.</p>
         </div>
         
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
           <input 
             type="date" 
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="flex-1 md:flex-none bg-white/5 border border-white/5 text-white text-xs font-bold rounded-xl px-4 py-3 focus:outline-none"
+            className="w-full sm:w-auto bg-white/5 border border-white/5 text-white text-xs font-black rounded-xl px-4 py-4 focus:outline-none uppercase tracking-widest"
           />
           <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={handleSubmit}
             disabled={loading}
-            className="px-6 md:px-8 py-3 md:py-4 bg-primary text-black font-black rounded-xl shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 text-sm md:text-base"
+            className="w-full sm:w-auto px-8 py-4 bg-primary text-black font-black rounded-xl shadow-[0_10px_30px_rgba(196,251,109,0.2)] flex items-center justify-center gap-2 disabled:opacity-50 text-xs md:text-sm uppercase tracking-widest"
           >
-            <Save className="w-4 h-4 md:w-5 md:h-5" />
-            {loading ? "SAVING..." : "SAVE LOG"}
+            <Save className="w-4 h-4" />
+            {loading ? "SAVING..." : "SAVE SESSION"}
           </motion.button>
         </div>
       </motion.div>
@@ -195,17 +195,17 @@ export default function LogWorkout() {
               initial={{ opacity: 0, scale: 0.98, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -20 }}
-              className="glass rounded-[32px] p-6 md:p-8 border border-white/5 relative group"
+              className="glass rounded-[24px] md:rounded-[32px] p-6 md:p-8 border border-white/5 relative group shadow-2xl"
             >
               <button 
                 onClick={() => removeExercise(ex.id)}
-                className="absolute top-4 right-4 p-2 text-muted hover:text-red-400 transition-colors"
+                className="absolute top-4 right-4 p-2 text-muted hover:text-red-400 transition-colors z-10"
                 title="Remove Exercise"
               >
                 <Trash2 className="w-5 h-5" />
               </button>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 mt-2">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase text-muted tracking-widest px-1">EXERCISE NAME</label>
                   <div className="relative">
@@ -215,7 +215,7 @@ export default function LogWorkout() {
                       placeholder="e.g. Bench Press"
                       value={ex.name}
                       onChange={(e) => updateExercise(ex.id, 'name', e.target.value)}
-                      className="w-full bg-white/5 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white font-bold focus:outline-none focus:border-primary/50 text-sm"
+                      className="w-full bg-white/5 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white font-black focus:outline-none focus:border-primary/50 text-xs md:text-sm"
                     />
                   </div>
                 </div>
@@ -226,7 +226,7 @@ export default function LogWorkout() {
                     <select 
                       value={ex.muscleGroup}
                       onChange={(e) => updateExercise(ex.id, 'muscleGroup', e.target.value)}
-                      className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 text-white font-bold focus:outline-none appearance-none text-sm cursor-pointer"
+                      className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 text-white font-black focus:outline-none appearance-none text-xs md:text-sm cursor-pointer"
                     >
                       {MUSCLE_GROUPS.map(mg => (
                         <option key={mg} value={mg} className="bg-[#121212] text-white py-2">
@@ -242,9 +242,9 @@ export default function LogWorkout() {
               {/* Sets */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between px-2">
-                   <h3 className="text-[10px] font-black text-white uppercase tracking-[0.2em] inline-flex items-center gap-2">
-                    <div className="w-1 h-3 bg-primary rounded-full" />
-                    PERFORMANCE SETS
+                   <h3 className="text-[10px] font-black text-white uppercase tracking-[0.2em] inline-flex items-center gap-2 italic">
+                    <div className="w-1.5 h-3 bg-primary rounded-full" />
+                    PERFORMANCE METRICS
                    </h3>
                 </div>
 
@@ -254,36 +254,38 @@ export default function LogWorkout() {
                         key={setIdx} 
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center gap-3 md:gap-4 bg-background/40 p-2 rounded-2xl border border-white/5 group/set"
+                        className="flex items-center gap-3 md:gap-4 bg-white/5 p-3 rounded-2xl border border-white/5 group/set"
                     >
-                      <div className="w-10 h-10 bg-secondary/50 rounded-xl flex items-center justify-center text-xs font-black text-white shrink-0">
+                      <div className="w-8 h-8 md:w-10 md:h-10 bg-secondary/50 rounded-xl flex items-center justify-center text-[10px] md:text-xs font-black text-primary shrink-0">
                         {setIdx + 1}
                       </div>
 
-                      <div className="flex-1 grid grid-cols-2 gap-3">
-                        <div className="relative">
+                      <div className="flex-1 grid grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[8px] font-black text-muted uppercase tracking-[0.2em] md:hidden">WEIGHT (KG)</label>
                           <input 
                             type="number"
                             placeholder="KG"
                             value={set.weight}
                             onChange={(e) => updateSet(ex.id, setIdx, 'weight', e.target.value)}
-                            className="w-full bg-transparent border-b border-white/10 py-2 text-center text-white font-black focus:border-primary outline-none transition-colors text-sm"
+                            className="w-full bg-transparent border-b border-white/10 py-1 md:py-2 text-center text-white font-black focus:border-primary outline-none transition-colors text-sm"
                           />
                         </div>
-                         <div className="relative">
+                         <div className="flex flex-col gap-1">
+                          <label className="text-[8px] font-black text-muted uppercase tracking-[0.2em] md:hidden">REPS</label>
                           <input 
                             type="number"
                             placeholder="REPS"
                             value={set.reps}
                             onChange={(e) => updateSet(ex.id, setIdx, 'reps', e.target.value)}
-                            className="w-full bg-transparent border-b border-white/10 py-2 text-center text-white font-black focus:border-primary outline-none transition-colors text-sm"
+                            className="w-full bg-transparent border-b border-white/10 py-1 md:py-2 text-center text-white font-black focus:border-primary outline-none transition-colors text-sm"
                           />
                         </div>
                       </div>
 
                       <button 
                         onClick={() => removeSet(ex.id, setIdx)}
-                        className="p-2 text-muted hover:text-red-400"
+                        className="p-2 text-muted hover:text-red-400 group-hover/set:opacity-100 transition-opacity"
                         title="Remove Set"
                       >
                          <X className="w-4 h-4" />
@@ -293,13 +295,13 @@ export default function LogWorkout() {
                 </div>
 
                 <motion.button 
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
                   onClick={() => addSet(ex.id)}
-                  className="w-full py-4 border border-dashed border-white/10 rounded-2xl flex items-center justify-center gap-2 text-muted hover:text-white hover:border-primary/50 transition-all text-xs font-black uppercase tracking-widest"
+                  className="w-full py-4 border border-dashed border-white/10 rounded-2xl flex items-center justify-center gap-2 text-muted hover:text-primary hover:border-primary/30 transition-all text-[10px] font-black uppercase tracking-widest bg-white/5"
                 >
                   <PlusCircle className="w-4 h-4" />
-                  ADD SET
+                  ADD NEW SET
                 </motion.button>
               </div>
             </motion.div>
@@ -310,12 +312,12 @@ export default function LogWorkout() {
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={addExercise}
-          className="w-full py-6 glass rounded-[32px] flex items-center justify-center gap-3 text-white hover:text-primary transition-all border border-dashed border-white/10"
+          className="w-full py-6 glass rounded-[24px] md:rounded-[32px] flex items-center justify-center gap-3 text-white hover:text-primary transition-all border border-dashed border-white/10 group shadow-xl"
         >
-          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
             <Plus className="w-6 h-6" />
           </div>
-          <span className="text-sm md:text-lg font-black uppercase tracking-tight">ADD EXERCISE</span>
+          <span className="text-sm md:text-lg font-black uppercase tracking-widest italic">ADD EXERCISE</span>
         </motion.button>
       </div>
     </div>
