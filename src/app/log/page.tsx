@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -34,7 +34,7 @@ interface Exercise {
   sets: Set[];
 }
 
-export default function LogWorkout() {
+function LogWorkoutContent() {
   const { user } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -412,5 +412,18 @@ export default function LogWorkout() {
         </motion.button>
       </div>
     </div>
+  );
+}
+
+export default function LogWorkout() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6">
+        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin shadow-xl" />
+        <p className="text-muted font-bold animate-pulse text-xs tracking-widest uppercase">LOADING SESSION...</p>
+      </div>
+    }>
+      <LogWorkoutContent />
+    </Suspense>
   );
 }
