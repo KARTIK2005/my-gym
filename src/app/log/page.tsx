@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -13,7 +13,8 @@ import {
   X,
   PlusCircle,
   AlertCircle,
-  ChevronDown
+  ChevronDown,
+  ArrowLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -36,11 +37,64 @@ interface Exercise {
 export default function LogWorkout() {
   const { user } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
+
   const [exercises, setExercises] = useState<Exercise[]>([
     { id: Math.random().toString(), name: "", muscleGroup: "Chest", sets: [{ reps: "", weight: "" }] }
   ]);
   const [loading, setLoading] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  useEffect(() => {
+    async function fetchWorkoutForEdit() {
+      if (!editId || !user) return;
+      setLoading(true);
+      setIsEditMode(true);
+      
+      try {
+        const { data, error } = await supabase
+          .from("workouts")
+          .select(`
+            date,
+            exercises (
+              id,
+              name,
+              muscle_group,
+              sets (
+                reps,
+                weight
+              )
+            )
+          `)
+          .eq("id", editId)
+          .single();
+
+        if (error) throw error;
+
+        if (data) {
+          setDate(data.date);
+          const mappedExercises = data.exercises.map((ex: any) => ({
+            id: ex.id || Math.random().toString(),
+            name: ex.name,
+            muscleGroup: ex.muscle_group,
+            sets: ex.sets.map((s: any) => ({
+              reps: s.reps.toString(),
+              weight: s.weight.toString()
+            }))
+          }));
+          setExercises(mappedExercises);
+        }
+      } catch (err) {
+        console.error("Error fetching workout for edit:", err);
+        alert("Failed to load workout for editing.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchWorkoutForEdit();
+  }, [editId, user]);
 
   const addExercise = () => {
     setExercises([...exercises, { 
@@ -94,28 +148,52 @@ export default function LogWorkout() {
     setLoading(true);
 
     try {
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .upsert({ id: user.id }, { onConflict: 'id' });
+      let workoutId = editId;
 
-      if (profileError) throw new Error(`Profile creation failed: ${profileError.message}`);
+      if (isEditMode && editId) {
+        // Update existing workout date
+        const { error: updateError } = await supabase
+          .from("workouts")
+          .update({ date: date })
+          .eq("id", editId);
+        
+        if (updateError) throw updateError;
 
-      const { data: workout, error: workoutError } = await supabase
-        .from("workouts")
-        .insert({
-          user_id: user.id,
-          date: date,
-        })
-        .select()
-        .single();
+        // Delete existing exercises (cascade will handle sets)
+        const { error: deleteError } = await supabase
+          .from("exercises")
+          .delete()
+          .eq("workout_id", editId);
+        
+        if (deleteError) throw deleteError;
+      } else {
+        // Create new profile if not exists
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .upsert({ id: user.id }, { onConflict: 'id' });
 
-      if (workoutError) throw workoutError;
+        if (profileError) throw new Error(`Profile creation failed: ${profileError.message}`);
 
+        // Insert new workout
+        const { data: workout, error: workoutError } = await supabase
+          .from("workouts")
+          .insert({
+            user_id: user.id,
+            date: date,
+          })
+          .select()
+          .single();
+
+        if (workoutError) throw workoutError;
+        workoutId = workout.id;
+      }
+
+      // Insert exercises and sets
       for (const ex of exercises) {
         const { data: exercise, error: exerciseError } = await supabase
           .from("exercises")
           .insert({
-            workout_id: workout.id,
+            workout_id: workoutId,
             name: ex.name || "Untitled Exercise",
             muscle_group: ex.muscleGroup,
           })
@@ -163,8 +241,12 @@ export default function LogWorkout() {
         className="flex flex-col md:flex-row md:items-center justify-between gap-6"
       >
         <div>
-          <h1 className="text-3xl md:text-4xl font-black text-white italic lowercase tracking-tighter uppercase">LOG <span className="text-primary not-italic">SESSION</span></h1>
-          <p className="text-muted mt-1 text-xs md:text-base font-medium">Record your victory for the history books.</p>
+          <h1 className="text-3xl md:text-4xl font-black text-white italic lowercase tracking-tighter uppercase">
+            {isEditMode ? "EDIT" : "LOG"} <span className="text-primary not-italic">SESSION</span>
+          </h1>
+          <p className="text-muted mt-1 text-xs md:text-base font-medium">
+            {isEditMode ? "Correcting your progress for the records." : "Record your victory for the history books."}
+          </p>
         </div>
         
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
@@ -182,10 +264,19 @@ export default function LogWorkout() {
             className="w-full sm:w-auto px-8 py-4 bg-primary text-black font-black rounded-xl shadow-[0_10px_30px_rgba(196,251,109,0.2)] flex items-center justify-center gap-2 disabled:opacity-50 text-xs md:text-sm uppercase tracking-widest"
           >
             <Save className="w-4 h-4" />
-            {loading ? "SAVING..." : "SAVE SESSION"}
+            {loading ? "SAVING..." : isEditMode ? "UPDATE SESSION" : "SAVE SESSION"}
           </motion.button>
         </div>
       </motion.div>
+
+      {isEditMode && (
+        <button 
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-muted hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest"
+        >
+          <ArrowLeft className="w-3 h-3" /> CANCEL EDIT
+        </button>
+      )}
 
       <div className="space-y-6">
         <AnimatePresence initial={false}>

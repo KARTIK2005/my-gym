@@ -11,7 +11,9 @@ import {
   Clock, 
   ArrowRight,
   Activity,
-  X
+  X,
+  Trash2,
+  Edit2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -27,9 +29,15 @@ interface Exercise {
   }[];
 }
 
-interface GroupedWorkout {
+interface WorkoutSession {
+  id: string;
   date: string;
   exercises: Exercise[];
+}
+
+interface GroupedWorkout {
+  date: string;
+  sessions: WorkoutSession[];
 }
 
 export default function WorkoutHistory() {
@@ -73,10 +81,10 @@ export default function WorkoutHistory() {
                 if (!acc[dateKey]) {
                     acc[dateKey] = {
                         date: dateKey,
-                        exercises: []
+                        sessions: []
                     };
                 }
-                acc[dateKey].exercises.push(...curr.exercises);
+                acc[dateKey].sessions.push(curr);
                 return acc;
             }, {});
 
@@ -106,6 +114,35 @@ export default function WorkoutHistory() {
       else newSet.add(date);
       return newSet;
     });
+  };
+
+  const handleDelete = async (workoutId: string) => {
+    if (!confirm("Are you sure you want to delete this workout session? This action cannot be undone.")) return;
+    
+    try {
+      const { error } = await supabase
+        .from("workouts")
+        .delete()
+        .eq("id", workoutId);
+
+      if (error) throw error;
+
+      // Refresh data
+      setGroupedWorkouts(prev => {
+        return prev.map(group => ({
+          ...group,
+          sessions: group.sessions.filter(s => s.id !== workoutId)
+        })).filter(group => group.sessions.length > 0);
+      });
+
+    } catch (err) {
+      console.error("Delete Error:", err);
+      alert("Failed to delete workout. Please try again.");
+    }
+  };
+
+  const handleEdit = (workoutId: string) => {
+    window.location.href = `/log?edit=${workoutId}`;
   };
 
   if (loading) {
@@ -172,15 +209,14 @@ export default function WorkoutHistory() {
                     <span className="text-lg md:text-2xl font-black text-white leading-none">{format(new Date(group.date), "dd")}</span>
                     <span className="text-[8px] md:text-[10px] font-black uppercase text-primary tracking-widest mt-1">{format(new Date(group.date), "MMM")}</span>
                  </div>
-                 <div>
+                  <div>
                     <h3 className="text-lg md:text-2xl font-black text-white uppercase tracking-tight mb-1 md:mb-2">
-                       {group.exercises.length} <span className="text-primary italic">Exercises</span>
+                       {group.sessions.reduce((acc, s) => acc + s.exercises.length, 0)} <span className="text-primary italic">Exercises</span>
                     </h3>
                     <div className="flex flex-wrap gap-1 md:gap-2">
-                        {Array.from(new Set(group.exercises.map(e => e.muscle_group))).slice(0, 3).map(mg => (
+                        {Array.from(new Set(group.sessions.flatMap(s => s.exercises.map(e => e.muscle_group)))).slice(0, 3).map(mg => (
                             <span key={mg} className="text-[7px] md:text-[10px] bg-white/5 text-muted px-2 md:px-4 py-1 md:py-1.5 rounded-full font-black uppercase border border-white/5 tracking-widest leading-none">{mg}</span>
                         ))}
-                        {Array.from(new Set(group.exercises.map(e => e.muscle_group))).length > 3 && <span className="text-[7px] md:text-[10px] text-muted italic">...</span>}
                     </div>
                  </div>
               </div>
@@ -201,35 +237,63 @@ export default function WorkoutHistory() {
                 >
                   <div className="p-5 md:p-8 pt-0 space-y-6 md:space-y-8">
                     <div className="h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent mb-4 md:mb-8" />
-                    {group.exercises.map((ex, exIdx) => (
-                      <div key={`${ex.id}-${exIdx}`} className="relative pl-6 md:pl-12">
-                        <div className="absolute left-[2px] md:left-[3px] top-0 bottom-0 w-[1px] md:w-[2px] bg-gradient-to-b from-primary/40 via-primary/5 to-transparent" />
-                        <div className="absolute left-[-2px] md:left-0 top-3 w-1.5 h-1.5 md:w-2 md:h-2 bg-primary rounded-full shadow-[0_0_15px_var(--primary)]" />
+                    {group.sessions.map((session, sIdx) => (
+                      <div key={session.id} className="space-y-6">
+                        {group.sessions.length > 1 && (
+                            <div className="flex items-center gap-4 mb-4">
+                                <span className="text-[10px] font-black uppercase text-primary tracking-widest italic bg-primary/5 px-3 py-1 rounded-full border border-primary/20">Session {sIdx + 1}</span>
+                                <div className="flex-1 h-[1px] bg-white/5" />
+                            </div>
+                        )}
                         
-                        <div className="flex flex-col gap-4 md:gap-8 p-4 md:p-8 bg-white/5 rounded-[24px] md:rounded-[40px] border border-white/5 hover:bg-white/[0.07] transition-all">
-                          <div className="flex items-center gap-3 md:gap-6 shrink-0">
-                             <div className="w-10 h-10 md:w-16 md:h-16 bg-secondary/80 rounded-xl md:rounded-2xl flex items-center justify-center text-primary shadow-xl border border-white/5">
-                                <Dumbbell className="w-5 h-5 md:w-8 md:h-8" />
-                             </div>
-                             <div>
-                                <h4 className="text-sm md:text-xl font-black text-white uppercase tracking-tight leading-none">{ex.name || "Strength Exercise"}</h4>
-                                <span className="text-[7px] md:text-[10px] text-primary font-black uppercase tracking-[0.2em] inline-block mt-1 md:mt-2 bg-primary/5 px-2 py-0.5 rounded-full border border-primary/20 leading-none">{ex.muscle_group}</span>
-                             </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4">
-                            {ex.sets.map((set, sIdx) => (
-                              <div key={set.id} className="bg-background/40 p-3 md:p-5 rounded-xl md:rounded-3xl border border-white/5 flex flex-col items-center hover:border-primary/20 transition-all">
-                                <span className="text-[7px] md:text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-1 md:mb-2">SET {sIdx + 1}</span>
-                                <div className="text-xs md:text-xl font-black text-white flex items-baseline gap-0.5 md:gap-1 italic">
-                                   {set.weight}<span className="text-primary text-[7px] md:text-[10px] not-italic font-black uppercase tracking-tighter">KG</span>
-                                   <XIcon className="mx-1 md:mx-2 text-muted w-2 h-2 md:w-3 md:h-3 translate-y-[-1px] md:translate-y-[-2px] not-italic" />
-                                   {set.reps}<span className="text-primary text-[7px] md:text-[10px] not-italic font-black uppercase tracking-tighter">REP</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                        <div className="flex justify-end gap-2 mb-2">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleEdit(session.id); }}
+                            className="p-2 bg-white/5 hover:bg-primary/10 text-muted hover:text-primary rounded-xl transition-all border border-white/5 group"
+                            title="Edit Session"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleDelete(session.id); }}
+                            className="p-2 bg-white/5 hover:bg-red-400/10 text-muted hover:text-red-400 rounded-xl transition-all border border-white/5 group"
+                            title="Delete Session"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
+
+                        {session.exercises.map((ex, exIdx) => (
+                          <div key={`${ex.id}-${exIdx}`} className="relative pl-6 md:pl-12">
+                            <div className="absolute left-[2px] md:left-[3px] top-0 bottom-0 w-[1px] md:w-[2px] bg-gradient-to-b from-primary/40 via-primary/5 to-transparent" />
+                            <div className="absolute left-[-2px] md:left-0 top-3 w-1.5 h-1.5 md:w-2 md:h-2 bg-primary rounded-full shadow-[0_0_15px_var(--primary)]" />
+                            
+                            <div className="flex flex-col gap-4 md:gap-8 p-4 md:p-8 bg-white/5 rounded-[24px] md:rounded-[40px] border border-white/5 hover:bg-white/[0.07] transition-all">
+                              <div className="flex items-center gap-3 md:gap-6 shrink-0">
+                                 <div className="w-10 h-10 md:w-16 md:h-16 bg-secondary/80 rounded-xl md:rounded-2xl flex items-center justify-center text-primary shadow-xl border border-white/5">
+                                    <Dumbbell className="w-5 h-5 md:w-8 md:h-8" />
+                                 </div>
+                                 <div>
+                                    <h4 className="text-sm md:text-xl font-black text-white uppercase tracking-tight leading-none">{ex.name || "Strength Exercise"}</h4>
+                                    <span className="text-[7px] md:text-[10px] text-primary font-black uppercase tracking-[0.2em] inline-block mt-1 md:mt-2 bg-primary/5 px-2 py-0.5 rounded-full border border-primary/20 leading-none">{ex.muscle_group}</span>
+                                 </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4">
+                                {ex.sets.map((set, setIdx) => (
+                                  <div key={set.id} className="bg-background/40 p-3 md:p-5 rounded-xl md:rounded-3xl border border-white/5 flex flex-col items-center hover:border-primary/20 transition-all">
+                                    <span className="text-[7px] md:text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-1 md:mb-2">SET {setIdx + 1}</span>
+                                    <div className="text-xs md:text-xl font-black text-white flex items-baseline gap-0.5 md:gap-1 italic">
+                                       {set.weight}<span className="text-primary text-[7px] md:text-[10px] not-italic font-black uppercase tracking-tighter">KG</span>
+                                       <XIcon className="mx-1 md:mx-2 text-muted w-2 h-2 md:w-3 md:h-3 translate-y-[-1px] md:translate-y-[-2px] not-italic" />
+                                       {set.reps}<span className="text-primary text-[7px] md:text-[10px] not-italic font-black uppercase tracking-tighter">REP</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ))}
                   </div>
